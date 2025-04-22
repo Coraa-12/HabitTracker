@@ -7,9 +7,11 @@ import android.widget.CheckBox
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-class HabitAdapter(private val habits: List<Habit>) : RecyclerView.Adapter<HabitAdapter.HabitViewHolder>() {
+class HabitAdapter(
+    private val habits: List<Habit>,
+    private val onLongClick: (Int) -> Unit
+) : RecyclerView.Adapter<HabitAdapter.HabitViewHolder>() {
 
-    // Holds the views for each habit item
     class HabitViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val habitName: TextView = itemView.findViewById(R.id.habitName)
         val habitCheckBox: CheckBox = itemView.findViewById(R.id.habitCheckBox)
@@ -26,9 +28,15 @@ class HabitAdapter(private val habits: List<Habit>) : RecyclerView.Adapter<Habit
         holder.habitName.text = habit.name
         holder.habitCheckBox.isChecked = habit.isCompleted
 
-        // Update data when checkbox is clicked
+        // Handle checkbox state change
         holder.habitCheckBox.setOnCheckedChangeListener { _, isChecked ->
             habit.isCompleted = isChecked
+        }
+
+        // Handle long-press to trigger delete
+        holder.itemView.setOnLongClickListener {
+            onLongClick(position)
+            true
         }
     }
 
