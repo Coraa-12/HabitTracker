@@ -2,6 +2,7 @@ package com.mercubuana.habittracker
 
 import android.os.Bundle
 import android.widget.EditText
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -11,7 +12,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.widget.TextView
 
 class MainActivity : AppCompatActivity() {
 
@@ -39,19 +39,17 @@ class MainActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.habitRecyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
         habitAdapter = HabitAdapter(habitList) { position ->
-            val habitToDelete = habitList[position]
+            val habit = habitList[position]
+
+            val options = arrayOf("Edit", "Delete")
             AlertDialog.Builder(this)
-                .setTitle("Delete Habit")
-                .setMessage("Are you sure you want to delete \"${habitToDelete.name}\"?")
-                .setPositiveButton("Delete") { _, _ ->
-                    lifecycleScope.launch {
-                        habitDao.deleteHabit(habitToDelete)
-                        habitList.removeAt(position)
-                        habitAdapter.notifyItemRemoved(position)
-                        updateEmptyMessage()
+                .setTitle("Choose Action")
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> showEditDialog(position)
+                        1 -> confirmDeleteHabit(position)
                     }
                 }
-                .setNegativeButton("Cancel", null)
                 .show()
         }
         recyclerView.adapter = habitAdapter
@@ -80,9 +78,8 @@ class MainActivity : AppCompatActivity() {
                     if (habitName.isNotBlank()) {
                         val newHabit = Habit(name = habitName, isCompleted = false)
                         lifecycleScope.launch {
-                            val id = withContext(Dispatchers.IO) {
+                            withContext(Dispatchers.IO) {
                                 habitDao.insertHabit(newHabit)
-                                habitDao.getAllHabits()
                             }
                             habitList.clear()
                             habitList.addAll(habitDao.getAllHabits())
@@ -94,5 +91,44 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton("Cancel", null)
                 .show()
         }
+    }
+
+    private fun showEditDialog(position: Int) {
+        val habit = habitList[position]
+        val input = EditText(this)
+        input.setText(habit.name)
+
+        AlertDialog.Builder(this)
+            .setTitle("Edit Habit")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val updatedName = input.text.toString()
+                if (updatedName.isNotBlank()) {
+                    habit.name = updatedName
+                    lifecycleScope.launch {
+                        habitDao.updateHabit(habit)
+                        habitAdapter.notifyItemChanged(position)
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmDeleteHabit(position: Int) {
+        val habit = habitList[position]
+        AlertDialog.Builder(this)
+            .setTitle("Delete Habit")
+            .setMessage("Are you sure you want to delete \"${habit.name}\"?")
+            .setPositiveButton("Delete") { _, _ ->
+                lifecycleScope.launch {
+                    habitDao.deleteHabit(habit)
+                    habitList.removeAt(position)
+                    habitAdapter.notifyItemRemoved(position)
+                    updateEmptyMessage()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 }
