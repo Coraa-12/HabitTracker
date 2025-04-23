@@ -39,8 +39,7 @@ class MainActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.habitRecyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
         habitAdapter = HabitAdapter(habitList) { position ->
-            val habit = habitList[position]
-
+            habitList[position]
             val options = arrayOf("Edit", "Delete")
             AlertDialog.Builder(this)
                 .setTitle("Choose Action")
@@ -60,7 +59,7 @@ class MainActivity : AppCompatActivity() {
                 habitDao.getAllHabits()
             }
             habitList.addAll(habitsFromDb)
-            habitAdapter.notifyDataSetChanged()
+            habitAdapter.notifyItemRangeInserted(0, habitList.size)
             updateEmptyMessage()
         }
 
@@ -81,9 +80,8 @@ class MainActivity : AppCompatActivity() {
                             withContext(Dispatchers.IO) {
                                 habitDao.insertHabit(newHabit)
                             }
-                            habitList.clear()
-                            habitList.addAll(habitDao.getAllHabits())
-                            habitAdapter.notifyDataSetChanged()
+                            habitList.add(newHabit)
+                            habitAdapter.notifyItemInserted(habitList.lastIndex)
                             updateEmptyMessage()
                         }
                     }

@@ -21,7 +21,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Drink Water 💧"
+            android:text="@string/habit_drink_water"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#5C4033" /> <!-- Soft warm brown -->
