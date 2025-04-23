@@ -12,6 +12,11 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.content.Context
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -89,6 +94,18 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton("Cancel", null)
                 .show()
         }
+
+        lifecycleScope.launch {
+            resetHabitsIfNewDay()
+            val habitsFromDb = withContext(Dispatchers.IO) {
+                habitDao.getAllHabits()
+            }
+            habitList.clear()
+            habitList.addAll(habitsFromDb)
+            habitAdapter.notifyDataSetChanged()
+            updateEmptyMessage()
+        }
+
     }
 
     private fun showEditDialog(position: Int) {
@@ -129,4 +146,18 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null)
             .show()
     }
+
+    private suspend fun resetHabitsIfNewDay() {
+        val prefs = getSharedPreferences("HabitPrefs", Context.MODE_PRIVATE)
+        val lastOpened = prefs.getString("last_opened", null)
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+        if (lastOpened != today) {
+            withContext(Dispatchers.IO) {
+                habitDao.resetAllHabits()
+            }
+            prefs.edit().putString("last_opened", today).apply()
+        }
+    }
+
 }
