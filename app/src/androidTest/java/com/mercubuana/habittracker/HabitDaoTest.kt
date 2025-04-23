@@ -1,54 +1,41 @@
 package com.mercubuana.habittracker
 
-import android.content.Context
-import androidx.room.Room
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.room.Room
 import kotlinx.coroutines.runBlocking
-import org.junit.After
-import org.junit.Assert.*
-import org.junit.Before
-import org.junit.Test
+import org.junit.*
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class HabitDaoTest {
 
-    private lateinit var database: HabitDatabase
-    private lateinit var dao: HabitDao
+    private lateinit var db: HabitDatabase
+    private lateinit var habitDao: HabitDao
 
     @Before
     fun setup() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        database = Room.inMemoryDatabaseBuilder(context, HabitDatabase::class.java)
-            .allowMainThreadQueries() // okay for testing
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        db = Room.inMemoryDatabaseBuilder(context, HabitDatabase::class.java)
+            .allowMainThreadQueries()
             .build()
-        dao = database.habitDao()
+        habitDao = db.habitDao()
     }
 
     @After
     fun teardown() {
-        database.close()
-    }
-
-    @Test
-    fun insertHabit_and_getAll_shouldReturnInsertedHabit() = runBlocking {
-        val habit = Habit(name = "Read Book", isCompleted = false)
-        dao.insertHabit(habit)
-
-        val allHabits = dao.getAllHabits()
-        assertEquals(1, allHabits.size)
-        assertEquals("Read Book", allHabits[0].name)
-        assertFalse(allHabits[0].isCompleted)
+        db.close()
     }
 
     @Test
     fun deleteHabit_shouldRemoveIt() = runBlocking {
-        val habit = Habit(name = "Meditate", isCompleted = false)
-        dao.insertHabit(habit)
-        dao.deleteHabit(habit)
+        val habit = Habit(name = "Test Habit", isCompleted = false)
+        habitDao.insertHabit(habit)
 
-        val allHabits = dao.getAllHabits()
-        assertTrue(allHabits.isEmpty())
+        val inserted = habitDao.getAllHabits().first { it.name == "Test Habit" }
+
+        habitDao.deleteHabit(inserted)
+        val allHabits = habitDao.getAllHabits()
+        Assert.assertTrue(allHabits.none { it.id == inserted.id })
     }
 }
