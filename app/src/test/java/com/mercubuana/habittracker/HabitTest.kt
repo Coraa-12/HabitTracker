@@ -14,4 +14,22 @@ class HabitTest {
         assertTrue(habit.isCompleted)
     }
 
+    @Test
+    fun habitEdit_shouldUpdateNameCorrectly() {
+        val habit = Habit(name = "Old Name", isCompleted = false)
+
+        habit.name = "New Name"
+
+        assertEquals("New Name", habit.name)
+    }
+
+    @Test
+    fun habitToggle_shouldReflectLatestState() {
+        val habit = Habit(name = "Meditate", isCompleted = false)
+
+        habit.isCompleted = true
+        habit.isCompleted = false
+
+        assertFalse(habit.isCompleted)
+    }
 }
