@@ -16,4 +16,8 @@ interface HabitDao {
 
     @Update
     suspend fun updateHabit(habit: Habit)
+
+    @Query("UPDATE Habit SET isCompleted = 0")
+    suspend fun resetAllHabits()
+
 }

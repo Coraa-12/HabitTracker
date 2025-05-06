@@ -6,11 +6,16 @@ import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 class HabitAdapter(
     private val habits: List<Habit>,
-    private val onLongClick: (Int) -> Unit
+    private val onLongClick: (Int) -> Unit,
+    private val onCheckChanged: (Habit) -> Unit
 ) : RecyclerView.Adapter<HabitAdapter.HabitViewHolder>() {
+
+    private val dateFormatter = DateTimeFormatter.ISO_DATE
 
     class HabitViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val habitName: TextView = itemView.findViewById(R.id.habitName)
@@ -26,14 +31,20 @@ class HabitAdapter(
     override fun onBindViewHolder(holder: HabitViewHolder, position: Int) {
         val habit = habits[position]
         holder.habitName.text = habit.name
+
+        // Remove any existing listener before setting state to avoid unwanted callbacks
+        holder.habitCheckBox.setOnCheckedChangeListener(null)
         holder.habitCheckBox.isChecked = habit.isCompleted
 
-        // Handle checkbox state change
         holder.habitCheckBox.setOnCheckedChangeListener { _, isChecked ->
             habit.isCompleted = isChecked
+            if (isChecked) {
+                // Record today's date when marked completed
+                habit.lastCompletedDate = LocalDate.now().format(dateFormatter)
+            }
+            onCheckChanged(habit)
         }
 
-        // Handle long-press to trigger delete
         holder.itemView.setOnLongClickListener {
             onLongClick(position)
             true
