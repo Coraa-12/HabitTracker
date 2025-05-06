@@ -1,6 +1,8 @@
 package com.mercubuana.habittracker
 
+import android.content.Context
 import android.os.Bundle
+import android.view.View
 import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
@@ -12,11 +14,9 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.content.Context
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
 
 class MainActivity : AppCompatActivity() {
 
@@ -24,52 +24,63 @@ class MainActivity : AppCompatActivity() {
     private lateinit var habitAdapter: HabitAdapter
     private lateinit var habitDao: HabitDao
     private lateinit var emptyMessage: TextView
+    private lateinit var addButton: FloatingActionButton
     private val habitList = mutableListOf<Habit>()
-
-    private fun updateEmptyMessage() {
-        emptyMessage.visibility = if (habitList.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Find views
         emptyMessage = findViewById(R.id.emptyMessage)
+        recyclerView = findViewById(R.id.habitRecyclerView)
+        addButton = findViewById(R.id.addHabitButton)
 
-        // Initialize DAO from Room
+        // Initialize DAO
         val db = HabitDatabase.getDatabase(this)
         habitDao = db.habitDao()
 
-        // Set up RecyclerView
-        recyclerView = findViewById(R.id.habitRecyclerView)
+        // Setup RecyclerView & Adapter
         recyclerView.layoutManager = LinearLayoutManager(this)
-        habitAdapter = HabitAdapter(habitList) { position ->
-            habitList[position]
-            val options = arrayOf("Edit", "Delete")
-            AlertDialog.Builder(this)
-                .setTitle("Choose Action")
-                .setItems(options) { _, which ->
-                    when (which) {
-                        0 -> showEditDialog(position)
-                        1 -> confirmDeleteHabit(position)
-                    }
+        habitAdapter = HabitAdapter(
+            habits = habitList,
+            onLongClick = { position ->
+                showItemOptions(position)
+            },
+            onCheckChanged = { habit ->
+                // Persist completion and date
+                lifecycleScope.launch(Dispatchers.IO) {
+                    habitDao.updateHabit(habit)
                 }
-                .show()
-        }
+            }
+        )
         recyclerView.adapter = habitAdapter
 
-        // Load existing habits from DB
+        // Load, reset, persist, and display
         lifecycleScope.launch {
-            val habitsFromDb = withContext(Dispatchers.IO) {
+            // 1) Load from DB
+            val fromDb = withContext(Dispatchers.IO) {
                 habitDao.getAllHabits()
             }
-            habitList.addAll(habitsFromDb)
-            habitAdapter.notifyItemRangeInserted(0, habitList.size)
+            // 2) Reset for new day and compute streaks
+            val resetList = ResetUtils.resetHabitsForNewDay(fromDb)
+            // 3) Persist any updates (isCompleted, streakCount)
+            withContext(Dispatchers.IO) {
+                resetList.forEach { habitDao.updateHabit(it) }
+            }
+            // 4) Update last opened date
+            val prefs = getSharedPreferences("HabitPrefs", Context.MODE_PRIVATE)
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                .format(Date())
+            prefs.edit().putString("last_opened", todayStr).apply()
+            // 5) Display
+            habitList.clear()
+            habitList.addAll(resetList)
+            habitAdapter.notifyDataSetChanged()
             updateEmptyMessage()
         }
 
-        // Add Habit Button
-        val addButton = findViewById<FloatingActionButton>(R.id.addHabitButton)
+        // Add new habit
         addButton.setOnClickListener {
             val input = EditText(this)
             input.hint = "Enter habit name"
@@ -78,9 +89,9 @@ class MainActivity : AppCompatActivity() {
                 .setTitle("New Habit")
                 .setView(input)
                 .setPositiveButton("Add") { _, _ ->
-                    val habitName = input.text.toString()
-                    if (habitName.isNotBlank()) {
-                        val newHabit = Habit(name = habitName, isCompleted = false)
+                    val name = input.text.toString().trim()
+                    if (name.isNotBlank()) {
+                        val newHabit = Habit(name = name)
                         lifecycleScope.launch {
                             withContext(Dispatchers.IO) {
                                 habitDao.insertHabit(newHabit)
@@ -94,18 +105,20 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton("Cancel", null)
                 .show()
         }
+    }
 
-        lifecycleScope.launch {
-            resetHabitsIfNewDay()
-            val habitsFromDb = withContext(Dispatchers.IO) {
-                habitDao.getAllHabits()
+    private fun showItemOptions(position: Int) {
+        val habit = habitList[position]
+        val options = arrayOf("Edit", "Delete")
+        AlertDialog.Builder(this)
+            .setTitle("Choose Action")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showEditDialog(position)
+                    1 -> confirmDeleteHabit(position)
+                }
             }
-            habitList.clear()
-            habitList.addAll(habitsFromDb)
-            habitAdapter.notifyDataSetChanged()
-            updateEmptyMessage()
-        }
-
+            .show()
     }
 
     private fun showEditDialog(position: Int) {
@@ -117,13 +130,13 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Edit Habit")
             .setView(input)
             .setPositiveButton("Save") { _, _ ->
-                val updatedName = input.text.toString()
-                if (updatedName.isNotBlank()) {
-                    habit.name = updatedName
-                    lifecycleScope.launch {
+                val updated = input.text.toString().trim()
+                if (updated.isNotBlank()) {
+                    habit.name = updated
+                    lifecycleScope.launch(Dispatchers.IO) {
                         habitDao.updateHabit(habit)
-                        habitAdapter.notifyItemChanged(position)
                     }
+                    habitAdapter.notifyItemChanged(position)
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -136,28 +149,18 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Delete Habit")
             .setMessage("Are you sure you want to delete \"${habit.name}\"?")
             .setPositiveButton("Delete") { _, _ ->
-                lifecycleScope.launch {
+                lifecycleScope.launch(Dispatchers.IO) {
                     habitDao.deleteHabit(habit)
-                    habitList.removeAt(position)
-                    habitAdapter.notifyItemRemoved(position)
-                    updateEmptyMessage()
                 }
+                habitList.removeAt(position)
+                habitAdapter.notifyItemRemoved(position)
+                updateEmptyMessage()
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    private suspend fun resetHabitsIfNewDay() {
-        val prefs = getSharedPreferences("HabitPrefs", Context.MODE_PRIVATE)
-        val lastOpened = prefs.getString("last_opened", null)
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-
-        if (lastOpened != today) {
-            withContext(Dispatchers.IO) {
-                habitDao.resetAllHabits()
-            }
-            prefs.edit().putString("last_opened", today).apply()
-        }
+    private fun updateEmptyMessage() {
+        emptyMessage.visibility = if (habitList.isEmpty()) View.VISIBLE else View.GONE
     }
-
 }
