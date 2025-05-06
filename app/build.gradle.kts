@@ -9,6 +9,15 @@ android {
     namespace = "com.mercubuana.habittracker"
     compileSdk = 35
 
+    testOptions {
+        unitTests {
+            // Include your res/ and AndroidManifest.xml on the JVM test classpath
+            isIncludeAndroidResources = true
+            // (Optional) allow Robolectric to return default values for missing methods
+            isReturnDefaultValues = true
+        }
+    }
+
     defaultConfig {
         applicationId = "com.mercubuana.habittracker"
         minSdk = 21
@@ -71,9 +80,9 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.5.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test:runner:1.5.2")
-    testImplementation("org.robolectric:robolectric:4.10.3")  // Use 4.10.3 instead of 4.11.0
+    testImplementation("org.robolectric:robolectric:4.11")  // Use 4.10.3 instead of 4.11.0
     testImplementation("androidx.test:core:1.5.0")
     testImplementation("androidx.test.ext:junit:1.1.5")
     testImplementation("androidx.test:runner:1.5.2")
-    kaptTest("org.robolectric:robolectric:4.11.0")
+    kaptTest("org.robolectric:robolectric:4.11")
 }
