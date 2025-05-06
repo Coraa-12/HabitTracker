@@ -15,6 +15,8 @@ material = "1.12.0"
 roomCommonJvm = "2.7.0"
 roomRuntimeAndroid = "2.7.0"
 roomCompiler = "2.7.0"
+filamentAndroid = "1.17.1"
+coreKtxVersion = "1.6.1"
 
 
 [libraries]
@@ -39,6 +41,8 @@ material = { group = "com.google.android.material", name = "material", version.r
 androidx-room-common-jvm = { group = "androidx.room", name = "room-common-jvm", version.ref = "roomCommonJvm" }
 androidx-room-runtime-android = { group = "androidx.room", name = "room-runtime-android", version.ref = "roomRuntimeAndroid" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomCompiler" }
+filament-android = { group = "com.google.ar.sceneform", name = "filament-android", version.ref = "filamentAndroid" }
+core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "coreKtxVersion" }
 
 
 [plugins]
