@@ -18,9 +18,11 @@ class HabitAdapter(
     private val dateFormatter = DateTimeFormatter.ISO_DATE
 
     class HabitViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val habitName: TextView = itemView.findViewById(R.id.habitName)
+        val nameTextView: TextView = itemView.findViewById(R.id.habitName)
+        val streakTextView: TextView = itemView.findViewById(R.id.streakCount) // New
         val habitCheckBox: CheckBox = itemView.findViewById(R.id.habitCheckBox)
     }
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HabitViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -30,7 +32,15 @@ class HabitAdapter(
 
     override fun onBindViewHolder(holder: HabitViewHolder, position: Int) {
         val habit = habits[position]
-        holder.habitName.text = habit.name
+
+        // Bind habit name
+        holder.nameTextView.text = habit.name
+
+        // Bind streak count
+        holder.streakTextView.text = "Streak: ${habit.streakCount} days"  // Bind the streak data
+
+        // Bind completion checkbox state
+        holder.habitCheckBox.isChecked = habit.isCompleted
 
         // Remove any existing listener before setting state to avoid unwanted callbacks
         holder.habitCheckBox.setOnCheckedChangeListener(null)
