@@ -4,12 +4,12 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
-import org.junit.Assume.assumeTrue
 
 @RunWith(RobolectricTestRunner::class)
 class MainActivityRoboTest {
@@ -42,3 +42,4 @@ class MainActivityRoboTest {
         assertFalse("Checkbox should be reset on new day", checkbox.isChecked)
     }
 }
+
