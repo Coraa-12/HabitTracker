@@ -5,61 +5,49 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 class HabitAdapter(
-    private val habits: List<Habit>,
-    private val onLongClick: (Int) -> Unit,
+    private val onLongClick: (Habit) -> Unit,
     private val onCheckChanged: (Habit) -> Unit
-) : RecyclerView.Adapter<HabitAdapter.HabitViewHolder>() {
+) : ListAdapter<Habit, HabitAdapter.ViewHolder>(HabitDiffCallback()) {
 
-    private val dateFormatter = DateTimeFormatter.ISO_DATE
-
-    class HabitViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val nameTextView: TextView = itemView.findViewById(R.id.habitName)
-        val streakTextView: TextView = itemView.findViewById(R.id.streakCount) // New
-        val habitCheckBox: CheckBox = itemView.findViewById(R.id.habitCheckBox)
+    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val nameTextView: TextView = view.findViewById(R.id.habitName)
+        val completedCheckBox: CheckBox = view.findViewById(R.id.habitCheckBox)
     }
 
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HabitViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.habit_item, parent, false)
-        return HabitViewHolder(view)
+        return ViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: HabitViewHolder, position: Int) {
-        val habit = habits[position]
-
-        // Bind habit name
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val habit = getItem(position)
         holder.nameTextView.text = habit.name
-
-        // Bind streak count
-        holder.streakTextView.text = "Streak: ${habit.streakCount} days"  // Bind the streak data
-
-        // Bind completion checkbox state
-        holder.habitCheckBox.isChecked = habit.isCompleted
-
-        // Remove any existing listener before setting state to avoid unwanted callbacks
-        holder.habitCheckBox.setOnCheckedChangeListener(null)
-        holder.habitCheckBox.isChecked = habit.isCompleted
-
-        holder.habitCheckBox.setOnCheckedChangeListener { _, isChecked ->
-            habit.isCompleted = isChecked
-            if (isChecked) {
-                // Record today's date when marked completed
-                habit.lastCompletedDate = LocalDate.now().format(dateFormatter)
-            }
-            onCheckChanged(habit)
-        }
+        holder.completedCheckBox.isChecked = habit.isCompleted
 
         holder.itemView.setOnLongClickListener {
-            onLongClick(position)
+            onLongClick(habit)
             true
+        }
+
+        holder.completedCheckBox.setOnCheckedChangeListener { _, isChecked ->
+            val updatedHabit = habit.copy(isCompleted = isChecked)
+            onCheckChanged(updatedHabit)
         }
     }
 
-    override fun getItemCount(): Int = habits.size
+    class HabitDiffCallback : DiffUtil.ItemCallback<Habit>() {
+        override fun areItemsTheSame(oldItem: Habit, newItem: Habit): Boolean {
+            return oldItem.id == newItem.id
+        }
+
+        override fun areContentsTheSame(oldItem: Habit, newItem: Habit): Boolean {
+            return oldItem == newItem
+        }
+    }
 }
