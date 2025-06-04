@@ -5,10 +5,10 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.widget.EditText
+// Removed: import android.widget.EditText // No longer needed here
 import android.widget.TextView
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AlertDialog // Still need for delete confirmation
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -22,7 +22,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var emptyMessage: TextView
     private lateinit var adapter: HabitAdapter
 
-    // ViewModel with factory injection
     private val vm: MainViewModel by viewModels {
         MainViewModelFactory(
             HabitRepository(HabitDatabase.getDatabase(this).habitDao()),
@@ -34,13 +33,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // ask POST_NOTIFICATIONS on Android 13+
         requestNotifPermissionIfNeeded()
 
-        // RecyclerView setup
+        // RecyclerView setup - Updated onCheckChanged lambda
         adapter = HabitAdapter(
             onLongClick = { habit -> showItemOptions(habit) },
-            onCheckChanged = { vm.updateHabit(it) }
+            onCheckChanged = { habit, isChecked -> vm.updateHabitCompletion(habit, isChecked) }
         )
         findViewById<RecyclerView>(R.id.habitRecyclerView).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
@@ -49,7 +47,6 @@ class MainActivity : AppCompatActivity() {
 
         emptyMessage = findViewById(R.id.emptyMessage)
 
-        // observe state
         lifecycleScope.launchWhenStarted {
             vm.habits.collectLatest { list ->
                 adapter.submitList(list)
@@ -57,28 +54,29 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // FAB → add-dialog
+        // FAB → add-dialog (Updated to call new function)
         findViewById<FloatingActionButton>(R.id.addHabitButton)
-            .setOnClickListener { showAddDialog() }
+            .setOnClickListener { showAddEditDialog(null) } // Pass null for new habit
 
-        // once-only notification channel
         createNotificationChannel()
     }
 
-    /* ---------- dialogs ---------- */
+    /* ---------- NEW UNIFIED DIALOG FUNCTION ---------- */
 
-    private fun showAddDialog() {
-        val input = EditText(this).apply { hint = "Enter habit name" }
-        AlertDialog.Builder(this)
-            .setTitle("New Habit")
-            .setView(input)
-            .setPositiveButton("Add") { _, _ ->
-                val name = input.text.toString().trim()
-                if (name.isNotBlank()) vm.addHabit(name)
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+    private fun showAddEditDialog(habitToEdit: Habit?) {
+        val dialog = AddEditHabitDialogFragment(
+            onSave = { habit ->
+                vm.saveHabit(habit) // Use the new unified save function
+            },
+            existing = habitToEdit // Pass the habit if editing, or null if adding
+        )
+        dialog.show(supportFragmentManager, "AddEditHabitDialog")
     }
+
+    /* ---------- DIALOGS (Updated/Removed) ---------- */
+
+    // REMOVED: showAddDialog() - Replaced by showAddEditDialog(null)
+    // REMOVED: showEditDialog(habit: Habit) - Replaced by showAddEditDialog(habit)
 
     private fun showItemOptions(habit: Habit) {
         val opts = arrayOf("Edit", "Delete")
@@ -86,28 +84,13 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Choose Action")
             .setItems(opts) { _, which ->
                 when (which) {
-                    0 -> showEditDialog(habit)
+                    0 -> showAddEditDialog(habit) // Call the new dialog for editing
                     1 -> confirmDelete(habit)
                 }
             }.show()
     }
 
-    private fun showEditDialog(habit: Habit) {
-        val input = EditText(this).apply { setText(habit.name) }
-        AlertDialog.Builder(this)
-            .setTitle("Edit Habit")
-            .setView(input)
-            .setPositiveButton("Save") { _, _ ->
-                val newName = input.text.toString().trim()
-                if (newName.isNotBlank()) {
-                    habit.name = newName
-                    vm.updateHabit(habit)
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
+    // confirmDelete remains mostly the same
     private fun confirmDelete(habit: Habit) {
         AlertDialog.Builder(this)
             .setTitle("Delete Habit")
@@ -117,7 +100,7 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    /* ---------- helpers ---------- */
+    /* ---------- helpers (Unchanged) ---------- */
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
